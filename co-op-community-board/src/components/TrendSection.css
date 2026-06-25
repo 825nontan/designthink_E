@@ -1,0 +1,45 @@
+.trend-section {
+  background: linear-gradient(180deg, #fff5f7 0%, #fde5ea 100%);
+  border-radius: 30px;
+  padding: 18px;
+  margin: 20px 0;
+  box-shadow: 0 14px 32px rgba(156, 74, 101, 0.1);
+}
+
+.trend-title {
+  font-size: 17px;
+  margin-bottom: 14px;
+  color: var(--color-maroon);
+}
+
+.trend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background-color: var(--color-white);
+  border-radius: 18px;
+  font-size: 14px;
+  color: var(--color-dark-gray);
+  border: 1px solid rgba(156, 74, 101, 0.12);
+}
+
+.trend-emoji {
+  font-size: 20px;
+}
+
+.trend-label {
+  flex: 1;
+  font-weight: 700;
+}
+
+.trend-count {
+  color: var(--color-maroon);
+  font-weight: 700;
+}
