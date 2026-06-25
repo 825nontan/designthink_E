@@ -39,3 +39,17 @@ export interface TrendItem {
   label: string
   count: number
 }
+
+export interface Viewer {
+  id: string
+  storeId: Store
+  sessionId: string
+  joinedAt: Date
+  lastActiveAt: Date
+}
+
+export interface DailyViewCount {
+  storeId: Store
+  date: string
+  totalViews: number
+}

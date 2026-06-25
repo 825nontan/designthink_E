@@ -3,10 +3,9 @@ import './PostCard.css'
 
 interface PostCardProps {
   post: Post
-  onLike: (postId: string) => void
 }
 
-export default function PostCard({ post, onLike }: PostCardProps) {
+export default function PostCard({ post }: PostCardProps) {
   const timeAgo = (date: Date) => {
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
@@ -27,9 +26,6 @@ export default function PostCard({ post, onLike }: PostCardProps) {
       </div>
       <div className="post-content">{post.content}</div>
       <div className="post-footer">
-        <button className="like-button" onClick={() => onLike(post.id)}>
-          👍 {post.likes}
-        </button>
         <span className="post-time">{timeAgo(post.createdAt)}</span>
       </div>
     </div>

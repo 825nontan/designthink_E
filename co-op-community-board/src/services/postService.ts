@@ -6,6 +6,7 @@ import {
   onSnapshot,
   updateDoc,
   doc,
+  getDoc,
   serverTimestamp,
 } from 'firebase/firestore'
 import { db } from './firebase'
@@ -34,6 +35,10 @@ export const createPost = async (
     return docRef.id
   } catch (error) {
     console.error('投稿作成エラー:', error)
+    if (error instanceof Error) {
+      console.error('エラー詳細:', error.message)
+      console.error('エラー型:', (error as any).code)
+    }
     throw error
   }
 }
@@ -62,7 +67,7 @@ export const subscribeToPostsByStore = (
 export const likePost = async (storeId: Store, postId: string): Promise<void> => {
   try {
     const postRef = doc(db, `stores/${storeId}/posts/${postId}`)
-    const postSnap = await (await import('firebase/firestore')).getDoc(postRef)
+    const postSnap = await getDoc(postRef)
     if (postSnap.exists()) {
       await updateDoc(postRef, {
         likes: (postSnap.data().likes || 0) + 1,

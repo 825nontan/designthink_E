@@ -1,81 +1,74 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { initializeAuth } from '../services/authService'
-import { createPost, subscribeToPostsByStore, likePost } from '../services/postService'
-import { Post, Store, PostLocation, TrendItem } from '../types'
+import { createPost, subscribeToPostsByStore } from '../services/postService'
+import {
+  registerViewer,
+  unregisterViewer,
+  subscribeToActiveViewerCount,
+  subscribeToTodayViewCount,
+} from '../services/viewerService'
+import { Post, Store, PostLocation } from '../types'
 import PostForm from '../components/PostForm'
 import PostList from '../components/PostList'
 import StatsCard from '../components/StatsCard'
-import HeatmapSection from '../components/HeatmapSection'
-import ProductRankingSection from '../components/ProductRankingSection'
 import TrendSection from '../components/TrendSection'
 import './CommunityBoardPage.css'
 
-const storeNames: Record<Store, string> = {
-  seikyo: '大学生協 購買',
-  noma: 'noma',
-  cafeteria: '食堂',
-}
-
 const DATA_STORE_ID: Store = 'seikyo'
 
-const STORAGE_KEYS = {
-  viewerCount: 'coopViewerCount',
-  todayViews: 'coopTodayViews',
-}
-
-const getTodayKey = () => {
-  const now = new Date()
-  return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now
-    .getDate()
-    .toString()
-    .padStart(2, '0')}`
-}
-
-const loadDailyCount = (key: string, fallback: number) => {
-  if (typeof window === 'undefined') return fallback
-
-  try {
-    const raw = window.localStorage.getItem(key)
-    if (!raw) return fallback
-    const parsed = JSON.parse(raw) as { count: number; date: string }
-    return parsed.date === getTodayKey() ? parsed.count : fallback
-  } catch {
-    return fallback
-  }
-}
-
-const saveDailyCount = (key: string, count: number) => {
-  if (typeof window === 'undefined') return
-
-  window.localStorage.setItem(
-    key,
-    JSON.stringify({ count, date: getTodayKey() })
-  )
-}
-
 export default function CommunityBoardPage() {
-  const { storeId } = useParams<{ storeId: Store }>()
+  useParams<{ storeId: Store }>()
   const [posts, setPosts] = useState<Post[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [viewerCount, setViewerCount] = useState(1)
-  const [todayViews, setTodayViews] = useState(1)
+  const [viewerCount, setViewerCount] = useState(0)
+  const [todayViews, setTodayViews] = useState(0)
   const [authReady, setAuthReady] = useState(false)
+  const [viewerId, setViewerId] = useState<string | null>(null)
 
-  const storeName = storeId ? storeNames[storeId as Store] || '生協' : '生協'
+  
 
+  // ページ訪問時にセッション登録
   useEffect(() => {
-    setViewerCount(loadDailyCount(STORAGE_KEYS.viewerCount, 1))
-    setTodayViews(loadDailyCount(STORAGE_KEYS.todayViews, 1))
-  }, [])
-
-  useEffect(() => {
-    const initialize = async () => {
-      await initializeAuth()
-      setAuthReady(true)
+    const registerSession = async () => {
+      try {
+        console.log('🔄 Registering viewer session for store:', DATA_STORE_ID)
+        const id = await registerViewer(DATA_STORE_ID)
+        console.log('✅ Session registered with ID:', id)
+        setViewerId(id)
+      } catch (error) {
+        console.error('❌ Failed to register viewer session:', error)
+      }
     }
 
-    initialize()
+    registerSession()
+
+    // ページ離脱時にセッション削除
+    return () => {
+      if (viewerId) {
+        console.log('🔄 Unregistering viewer session:', viewerId)
+        unregisterViewer(viewerId).catch((error) =>
+          console.error('❌ Failed to unregister viewer:', error)
+        )
+      }
+    }
+  }, [])
+
+  // リアルタイム閲覧者数の購読
+  useEffect(() => {
+    const unsubscribeViewerCount = subscribeToActiveViewerCount(
+      DATA_STORE_ID,
+      setViewerCount
+    )
+    const unsubscribeTodayViews = subscribeToTodayViewCount(
+      DATA_STORE_ID,
+      setTodayViews
+    )
+
+    return () => {
+      unsubscribeViewerCount()
+      unsubscribeTodayViews()
+    }
   }, [])
 
   // リアルタイムリスナー設定
@@ -96,126 +89,76 @@ export default function CommunityBoardPage() {
     return unsubscribe
   }, [authReady])
 
-  // 閲覧者数トラッキング（15秒ごと）
+  // 認証初期化
   useEffect(() => {
-    const interval = setInterval(() => {
-      setViewerCount((prev) => {
-        const next = Math.min(prev + 1, 20)
-        saveDailyCount(STORAGE_KEYS.viewerCount, next)
-        return next
-      })
-      setTodayViews((prev) => {
-        const next = Math.min(prev + 3, 200)
-        saveDailyCount(STORAGE_KEYS.todayViews, next)
-        return next
-      })
-    }, 15000)
+    const initialize = async () => {
+      await initializeAuth()
+      setAuthReady(true)
+    }
 
-    return () => clearInterval(interval)
+    initialize()
   }, [])
 
-  const calculateTrends = (): TrendItem[] => {
-    const emojiCounts = new Map<string, number>()
-    const emojiMap: Record<string, string> = {
-      '🥐': '🥐 パン',
-      '🍱': '🍙 お弁当',
-      '🍨': '🍨 アイス',
-      '✏️': '✏️ 文房具',
-      '🍜': '🍜 麺',
-      '🧃': '🧃 飲み物',
-    }
+  // HOTな場所上位3と、みんなのきもち（絵文字）上位3を算出
+  const calculateHotAndFeelings = () => {
+    const locationCounts = new Map<string, number>()
+    const feelingCounts = new Map<string, number>()
 
     posts.forEach((post) => {
-      const emoji = post.emoji || '😊'
-      const label = emojiMap[emoji] || emoji
-      emojiCounts.set(label, (emojiCounts.get(label) || 0) + 1)
-    })
-
-    return Array.from(emojiCounts.entries())
-      .map(([label, count]) => ({
-        emoji: label.charAt(0),
-        label: label.slice(2),
-        count,
-      }))
-      .sort((a, b) => b.count - a.count)
-  }
-
-  const calculateHeatmap = () => {
-    const heatmap: Record<string, number> = {
-      '🥐 焼きたてパン': 0,
-      '🍱 お弁当・おにぎり': 0,
-      '🍜 インスタント麺・スープ': 0,
-      '🍨 アイス': 0,
-      '🍬 お菓子': 0,
-      '📕 書籍': 0,
-      '🧃 飲み物': 0,
-      '✏️ 文房具': 0,
-      '🛒 レジ': 0,
-      '🍪 火・木限定チャンククッキー': 0,
-      '✨ その他': 0,
-    }
-
-    posts.forEach((post) => {
-      if (post.location && heatmap.hasOwnProperty(post.location)) {
-        heatmap[post.location]++
+      if (post.location) {
+        locationCounts.set(post.location, (locationCounts.get(post.location) || 0) + 1)
       }
+      const emoji = post.emoji || '😊'
+      feelingCounts.set(emoji, (feelingCounts.get(emoji) || 0) + 1)
     })
 
-    return heatmap
-  }
-
-  const calculateRanking = () => {
-    const heatmap = calculateHeatmap()
-    return Object.entries(heatmap)
-      .filter(([, count]) => count > 0)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
+    const hotLocations = Array.from(locationCounts.entries())
       .map(([location, count]) => {
         const emoji = location.slice(0, location.indexOf(' '))
         const label = location.slice(location.indexOf(' ') + 1)
-        return {
-          emoji,
-          label,
-          count,
-        }
+        return { emoji, label, count }
       })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+
+    const feelings = Array.from(feelingCounts.entries())
+      .map(([emoji, count]) => ({ emoji, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+
+    return { hotLocations, feelings }
   }
+
+  
+
+  
 
   const handleSubmitPost = async (
     content: string,
     emoji: string,
     location?: PostLocation
   ) => {
-    if (!authReady) {
-      await initializeAuth()
-      setAuthReady(true)
-    }
-
     setIsLoading(true)
     try {
+      if (!authReady) {
+        await initializeAuth()
+        setAuthReady(true)
+      }
       await createPost(DATA_STORE_ID, content, emoji, location)
     } catch (error) {
-      console.error('投稿失敗:', error)
-      alert('投稿に失敗しました')
+        console.error('投稿失敗:', error)
+        const msg = error instanceof Error ? `${error.message}` : '投稿に失敗しました'
+        alert(`投稿に失敗しました: ${msg}`)
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const handleLike = async (postId: string) => {
-    try {
-      await likePost(DATA_STORE_ID, postId)
-    } catch (error) {
-      console.error('いいね失敗:', error)
     }
   }
 
   return (
     <div className="community-board-page">
       <header className="page-header">
-        <h1>生協 今どんな感じ！？</h1>
+        <h1 className="poppy-title">生協　今どんな感じ！？</h1>
         <p className="page-subtitle">あなたの今でつながる生協</p>
-        <p className="page-store">{storeName}</p>
       </header>
 
       <div className="page-content">
@@ -240,15 +183,11 @@ export default function CommunityBoardPage() {
           />
         </div>
 
-        <HeatmapSection heatmap={calculateHeatmap()} />
-
-        <ProductRankingSection ranking={calculateRanking()} />
-
-        <TrendSection trends={calculateTrends()} />
+        <TrendSection {...calculateHotAndFeelings()} />
 
         <PostForm onSubmit={handleSubmitPost} isLoading={isLoading} />
 
-        <PostList posts={posts} onLike={handleLike} />
+        <PostList posts={posts} />
 
         <div className="site-footer">
           ※本イベントは「デザイン思考とロジックモデル」講義の一環として、学生が企画・実施するものです。<br />

@@ -4,10 +4,9 @@ import './PostList.css'
 
 interface PostListProps {
   posts: Post[]
-  onLike: (postId: string) => void
 }
 
-export default function PostList({ posts, onLike }: PostListProps) {
+export default function PostList({ posts }: PostListProps) {
   if (posts.length === 0) {
     return (
       <div className="empty-state">
@@ -22,7 +21,7 @@ export default function PostList({ posts, onLike }: PostListProps) {
     <div className="post-list">
       <h2 className="posts-title">💬 みんなの投稿</h2>
       {posts.map((post) => (
-        <PostCard key={post.id} post={post} onLike={onLike} />
+        <PostCard key={post.id} post={post} />
       ))}
     </div>
   )

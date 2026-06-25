@@ -71,28 +71,35 @@
   font-weight: 700;
 }
 
-.emoji-selector {
+.emoji-buttons {
   display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
+}
+
+.emoji-button {
+  width: 100%;
+  height: 56px;
+  border: 2px solid rgba(156, 74, 101, 0.2);
+  border-radius: 18px;
   background-color: var(--color-white);
-  border: 1px solid rgba(156, 74, 101, 0.18);
-  border-radius: 22px;
-  padding: 14px 16px;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.emoji-input {
-  width: 60px;
-  height: 60px;
-  border: 2px solid rgba(156, 74, 101, 0.25);
-  border-radius: 50%;
-  font-size: 26px;
-  text-align: center;
-  background-color: var(--color-cream);
+.emoji-button:hover {
+  border-color: rgba(156, 74, 101, 0.4);
+  background-color: #fff8f5;
 }
 
-.emoji-help {
-  font-size: 12px;
-  color: var(--color-muted);
+.emoji-button.active {
+  background: linear-gradient(135deg, #f0c8d2, #f5d9e8);
+  border-color: #e690a0;
+  box-shadow: 0 4px 12px rgba(156, 74, 101, 0.15);
 }
 
 .post-textarea {

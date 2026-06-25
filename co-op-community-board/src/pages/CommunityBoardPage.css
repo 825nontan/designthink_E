@@ -21,6 +21,11 @@
   line-height: 1.2;
 }
 
+.poppy-title {
+  letter-spacing: 0.18em;
+  font-weight: 800;
+}
+
 .page-header p {
   margin: 12px auto 0;
   max-width: 340px;

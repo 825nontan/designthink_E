@@ -34,6 +34,8 @@ const locationOptions: PostLocation[] = [
   '✨ その他',
 ]
 
+const EMOJI_OPTIONS = ['😊', '😢', '😂', '😡', '😲', '😍', '👍', '👎']
+
 export default function PostForm({ onSubmit, isLoading }: PostFormProps) {
   const [content, setContent] = useState('')
   const [emoji, setEmoji] = useState('😊')
@@ -87,16 +89,18 @@ export default function PostForm({ onSubmit, isLoading }: PostFormProps) {
         </div>
 
         <div className="emoji-section">
-          <label className="emoji-label">今の気持ちにぴったりな絵文字は？</label>
-          <div className="emoji-selector">
-            <input
-              type="text"
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value.slice(0, 2))}
-              maxLength={2}
-              className="emoji-input"
-            />
-            <div className="emoji-help">絵文字とコメントが一緒に投稿されます</div>
+          <label className="emoji-label">今の気持ちにぴったりな絵文字を選んでみよう</label>
+          <div className="emoji-buttons">
+            {EMOJI_OPTIONS.map((e) => (
+              <button
+                key={e}
+                type="button"
+                className={`emoji-button ${emoji === e ? 'active' : ''}`}
+                onClick={() => setEmoji(e)}
+              >
+                {e}
+              </button>
+            ))}
           </div>
         </div>
 
